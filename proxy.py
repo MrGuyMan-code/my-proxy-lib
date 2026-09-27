@@ -1,0 +1,87 @@
+from playwright.sync_api import sync_playwright
+from pathlib import Path
+import random
+import requests
+
+link = "https://proxyscrape.com/free-proxy-list"
+LIB_DIR = Path(__file__).resolve().parent
+LIST_FILE = LIB_DIR / "free-proxy-list.txt"
+
+class Proxy_class():
+    current_proxy = None
+    proxy_list = None
+
+    @staticmethod
+    def refresh_proxy_list():
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(accept_downloads=True)
+
+            # BLOCHEAZĂ toate overlay-urile de la sursă
+            for pattern in [
+                "**/*cookiebot*",
+                "**/consent.cookiebot.com/**",
+                "**/*intercom*",
+                "**/widget.intercom.io/**",
+                "**/js.intercomcdn.com/**",
+                "**/static.intercomassets.com/**",
+            ]:
+                context.route(pattern, lambda r: r.abort())
+
+            page = context.new_page()
+            page.goto(link, wait_until="networkidle")
+
+            # Ascunde top-bar sticky (singurul care nu vine din script extern)
+            page.add_style_tag(content="""
+                [data-section="top-bar"] { position: static !important; }
+            """)
+
+            # Click direct pe Download — nimic nu-l mai blochează
+            buton = page.get_by_role("button", name="Download", exact=True)
+            buton.scroll_into_view_if_needed()
+
+            with page.expect_download(timeout=60_000) as dl:
+                buton.click()
+
+            dl.value.save_as(str(LIST_FILE))
+            print("Salvat:", LIST_FILE)
+
+            browser.close()
+
+    @staticmethod
+    def load_proxy_list():
+        with open('free-proxy-list.txt', 'r') as f:
+            Proxy_class.proxy_list = [line.rstrip('\n') for line in f]
+    
+    @staticmethod
+    def get_random_proxy(timeout = 5):
+        index = random.randrange(0, len(Proxy_class.proxy_list))
+
+        Proxy_class.current_proxy = Proxy_class.proxy_list[index]
+
+        if Proxy_class._check_proxy(Proxy_class.current_proxy, timeout = timeout) is True:
+            return Proxy_class.current_proxy
+        
+        return None
+
+    @staticmethod
+    def _check_proxy(proxy, timeout=5):
+        proxies = {"http": proxy, "https": proxy}
+        try:
+            r = requests.get("https://api.ipify.org",
+                            proxies=proxies,
+                            timeout=(3, timeout))
+            if r.ok:
+                print(f"✅ {proxy} -> {r.text}")
+                return True
+            else:
+                print(f"⚠️ {proxy} -> status {r.status_code}")
+                return False
+        except Exception as e:
+            print(f"❌ {proxy} -> {type(e).__name__}: {e}")
+            return False
+
+    @staticmethod
+    def print_first5():
+        for i in range(5):
+            print(Proxy_class.proxy_list[i])
