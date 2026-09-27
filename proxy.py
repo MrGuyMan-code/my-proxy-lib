@@ -50,7 +50,7 @@ class Proxy_class():
 
     @staticmethod
     def load_proxy_list():
-        with open('free-proxy-list.txt', 'r') as f:
+        with open(LIST_FILE, 'r') as f:
             Proxy_class.proxy_list = [line.rstrip('\n') for line in f]
     
     @staticmethod
