@@ -15,7 +15,7 @@ class Proxy_class():
         Proxy_class.load_proxy_list()
 
     @staticmethod
-    def refresh_proxy_list():
+    def refresh_proxy_list(silent = False):
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             context = browser.new_context(accept_downloads=True)
@@ -47,57 +47,63 @@ class Proxy_class():
                 buton.click()
 
             dl.value.save_as(str(LIST_FILE))
-            print("Salvat:", LIST_FILE)
+            if not silent:
+                print("Salvat:", LIST_FILE)
 
             browser.close()
 
     @staticmethod
-    def load_proxy_list():
+    def load_proxy_list(silent = False):
         try:
             with open(LIST_FILE, 'r') as f:
                 Proxy_class.proxy_list = [line.rstrip('\n') for line in f]
         except:
-            print("No proxi file found OR file unable to open!!!")
+            if not silent:
+                print("No proxi file found OR file unable to open!!!")
     
     @staticmethod
-    def get_random_proxy(timeout = 5):
+    def get_random_proxy(timeout = 5, silent = False):
         index = random.randrange(0, len(Proxy_class.proxy_list))
 
         Proxy_class.current_proxy = Proxy_class.proxy_list[index]
 
-        if Proxy_class._check_proxy(Proxy_class.current_proxy, timeout = timeout) is True:
+        if Proxy_class._check_proxy(Proxy_class.current_proxy, timeout = timeout, silent=silent) is True:
             return Proxy_class.current_proxy
         
         return None
 
     @staticmethod
-    def get_working_proxy(timeout = 5, max_counter = 30):
+    def get_working_proxy(timeout = 5, max_counter = 30, silent = False):
         proxy = None
         counter = 0
         while not proxy and counter < max_counter:
-            proxy = Proxy_class.get_random_proxy(timeout = timeout)
+            proxy = Proxy_class.get_random_proxy(timeout = timeout, silent=silent)
             counter += 1
         
         if not proxy:
-            print("No proxy found and limit reached")
+            if not silent:
+                print("No proxy found and limit reached")
         
         return proxy
 
     @staticmethod
-    def _check_proxy(proxy, timeout=5):
+    def _check_proxy(proxy, timeout=5, silent = False):
         proxies = {"http": proxy, "https": proxy}
         try:
             r = requests.get("https://api.ipify.org",
                             proxies=proxies,
                             timeout=(3, timeout))
             if r.ok:
-                print(f"✅ {proxy} -> {r.text}")
+                if not silent:
+                    print(f"✅ {proxy} -> {r.text}")
                 return True
             else:
-                print(f"⚠️ {proxy} -> status {r.status_code}")
+                if not silent:
+                    print(f"⚠️ {proxy} -> status {r.status_code}")
                 return False
         except Exception as e:
-            print(f"❌ {proxy} -> {type(e).__name__}: {e}")
+            if not silent:
+                print(f"❌ {proxy} -> {type(e).__name__}: {e}")
             return False
 
     @staticmethod
@@ -105,7 +111,3 @@ class Proxy_class():
         for i in range(5):
             print(Proxy_class.proxy_list[i])
 
-
-element = Proxy_class()
-
-print(element.get_working_proxy())
