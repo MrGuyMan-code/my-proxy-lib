@@ -11,6 +11,9 @@ class Proxy_class():
     current_proxy = None
     proxy_list = None
 
+    def __init__(self):
+        Proxy_class.load_proxy_list()
+
     @staticmethod
     def refresh_proxy_list():
         with sync_playwright() as p:
@@ -50,8 +53,11 @@ class Proxy_class():
 
     @staticmethod
     def load_proxy_list():
-        with open(LIST_FILE, 'r') as f:
-            Proxy_class.proxy_list = [line.rstrip('\n') for line in f]
+        try:
+            with open(LIST_FILE, 'r') as f:
+                Proxy_class.proxy_list = [line.rstrip('\n') for line in f]
+        except:
+            print("No proxi file found OR file unable to open!!!")
     
     @staticmethod
     def get_random_proxy(timeout = 5):
@@ -63,6 +69,19 @@ class Proxy_class():
             return Proxy_class.current_proxy
         
         return None
+
+    @staticmethod
+    def get_working_proxy(timeout = 5, max_counter = 30):
+        proxy = None
+        counter = 0
+        while not proxy and counter < max_counter:
+            proxy = Proxy_class.get_random_proxy(timeout = timeout)
+            counter += 1
+        
+        if not proxy:
+            print("No proxy found and limit reached")
+        
+        return proxy
 
     @staticmethod
     def _check_proxy(proxy, timeout=5):
@@ -85,3 +104,8 @@ class Proxy_class():
     def print_first5():
         for i in range(5):
             print(Proxy_class.proxy_list[i])
+
+
+element = Proxy_class()
+
+print(element.get_working_proxy())
